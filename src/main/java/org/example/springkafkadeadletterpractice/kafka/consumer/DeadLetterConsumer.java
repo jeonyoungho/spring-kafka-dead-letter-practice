@@ -26,6 +26,7 @@ public class DeadLetterConsumer {
                         Acknowledgment acknowledgment) {
         Object value = consumerRecord.value();
         LocalDateTime originalDateTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(originalTimestamp), ZoneId.systemDefault());
+
         log.error("[Kafka][Consumer] Consumed Dead Letter Message ==> Topic:{}, Partition:{}, DateTime:{}, Value:{}, ExceptionStackTrace:{}",
                   originalTopic,
                   originalPartition,

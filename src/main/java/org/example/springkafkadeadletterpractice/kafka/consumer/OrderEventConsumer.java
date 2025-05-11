@@ -24,14 +24,8 @@ public class OrderEventConsumer {
         String topic = consumerRecord.topic();
         KafkaOrderEventDto value = consumerRecord.value();
 
-        LocalDateTime dateTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(consumerRecord.timestamp()), ZoneId.systemDefault());
-        log.info("[Kafka][Consumer] Consumed Order Event Message! Topic:{}, Partition:{}, DateTime:{}, Value:{}",
-                 topic,
-                 consumerRecord.partition(),
-                 dateTime,
-                 value);
+        log.info("[Kafka][Consumer] Topic: {}, Partition: {},  Value:{}", topic, consumerRecord.partition(), value);
 
-        // 컨슈머 메시지 처리 실패시 메시지 처리 지연 현상 발생
         throw new RuntimeException();
 
 //        orderEventHandler.handle(value);
