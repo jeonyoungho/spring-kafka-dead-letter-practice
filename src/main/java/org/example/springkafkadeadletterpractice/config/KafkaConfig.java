@@ -37,14 +37,8 @@ public class KafkaConfig {
     @Value("${spring.kafka.bootstrap-servers}")
     private String kafkaBootstrapServers;
 
-    @Value("${spring.kafka.producer.client-id}")
-    private String producerClientId;
-
     @Value("${spring.kafka.consumer.group-id}")
     private String consumerGroupId;
-
-    @Value("${spring.kafka.consumer.client-id}")
-    private String consumerClientId;
 
     @Value("${spring.kafka.topic.order-event}")
     private String orderEventTopic;
