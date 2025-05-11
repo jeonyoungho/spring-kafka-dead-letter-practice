@@ -13,7 +13,7 @@ public class KafkaProducer {
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
     public void send(String topic, Object data) {
-        log.info("[KAFKA][PRODUCER] publish message. topic={}, data ={} ", topic, data);
+        log.info("[Kafka][Producer] Publish Message ==> Topic:{}, Data:{} ", topic, data);
         kafkaTemplate.send(topic, data);
     }
 

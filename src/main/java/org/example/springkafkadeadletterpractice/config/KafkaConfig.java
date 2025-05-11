@@ -2,6 +2,7 @@ package org.example.springkafkadeadletterpractice.config;
 
 import com.google.common.collect.Maps;
 import java.util.Map;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
@@ -22,10 +23,13 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.listener.ContainerProperties.AckMode;
 import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
 import org.springframework.kafka.listener.DefaultErrorHandler;
+import org.springframework.kafka.listener.KafkaListenerErrorHandler;
 import org.springframework.kafka.support.serializer.JsonDeserializer;
 import org.springframework.kafka.support.serializer.JsonSerializer;
 import org.springframework.util.backoff.ExponentialBackOff;
+import org.springframework.util.backoff.FixedBackOff;
 
+@Slf4j
 @EnableKafka
 @Configuration
 public class KafkaConfig {
@@ -92,13 +96,24 @@ public class KafkaConfig {
 
     @Bean
     public DefaultErrorHandler defaultErrorHandler() {
-        ExponentialBackOff backOff = new ExponentialBackOff();
-        backOff.setMaxAttempts(3);
-        backOff.setInitialInterval(1000L);
-        backOff.setMultiplier(2.0);
-        backOff.setMaxInterval(10000L);
+//        ExponentialBackOff backOff = new ExponentialBackOff();
+//        backOff.setMaxAttempts(3);
+//        backOff.setInitialInterval(1000L);
+//        backOff.setMultiplier(2.0);
+//        backOff.setMaxInterval(10000L);
+//
+//        return new DefaultErrorHandler(deadLetterPublishingRecoverer(), backOff);
 
-        return new DefaultErrorHandler(deadLetterPublishingRecoverer(), backOff);
+        return new DefaultErrorHandler(deadLetterPublishingRecoverer(), new FixedBackOff(0L, 0L));
+    }
+
+    @Bean
+    public KafkaListenerErrorHandler deadLetterErrorHandler() {
+        return (message, exception) -> {
+            // dlt 메시지 처리 실패시 처리 로직
+            log.error("Error Occurred during DLT Processing. Skipping message: {}, Error: {}", message.getPayload(), exception.getMessage());
+            return null;
+        };
     }
 
     @Bean
