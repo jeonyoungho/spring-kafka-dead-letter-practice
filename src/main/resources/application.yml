@@ -20,15 +20,7 @@ spring:
 
   kafka:
     bootstrap-servers: localhost:9092
-    producer:
-      client-id: kafka-test-producer
     consumer:
-      client-id: kafka-test-consumer
       group-id: kafka-test-group
     topic:
       order-event: order-event
-      dead-letter: dead-letter
-#    listener:
-#      concurrency: 3
-#      ack-mode: manual
-

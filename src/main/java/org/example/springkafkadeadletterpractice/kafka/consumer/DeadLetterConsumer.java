@@ -1,12 +1,8 @@
 package org.example.springkafkadeadletterpractice.kafka.consumer;
 
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.handler.annotation.Header;
@@ -17,22 +13,26 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class DeadLetterConsumer {
 
-    @KafkaListener(topics = "${spring.kafka.topic.dead-letter}", errorHandler = "deadLetterErrorHandler")
-    public void consume(ConsumerRecord<String, Object> consumerRecord,
-                        @Header(KafkaHeaders.DLT_ORIGINAL_TOPIC) String originalTopic,
-                        @Header(KafkaHeaders.DLT_ORIGINAL_PARTITION) int originalPartition,
-                        @Header(KafkaHeaders.DLT_ORIGINAL_TIMESTAMP) long originalTimestamp,
-                        @Header(KafkaHeaders.DLT_EXCEPTION_STACKTRACE) String originalExceptionStackTrace,
+    public void consume(ConsumerRecord<String, String> consumerRecord,
+                        @Header(KafkaHeaders.RECEIVED_TOPIC) String topic,
+                        @Header(KafkaHeaders.RECEIVED_PARTITION) int partition,
+                        @Header(KafkaHeaders.OFFSET) Long offset,
+                        @Header(KafkaHeaders.EXCEPTION_MESSAGE) String exceptionMessage,
+                        @Header(KafkaHeaders.EXCEPTION_STACKTRACE) String exceptionStacktrace,
+                        @Header(KafkaHeaders.GROUP_ID) String groupId,
                         Acknowledgment acknowledgment) {
-        Object value = consumerRecord.value();
-        LocalDateTime originalDateTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(originalTimestamp), ZoneId.systemDefault());
+        String key = consumerRecord.key();
+        String value = consumerRecord.value();
 
-        log.error("[Kafka][Consumer] Consumed Dead Letter Message ==> Topic:{}, Partition:{}, DateTime:{}, Value:{}, ExceptionStackTrace:{}",
-                  originalTopic,
-                  originalPartition,
-                  originalDateTime,
+        log.error("[Kafka][Consumer] Consumed Dead Letter Message ==> Topic:{}, Key: {}, Partition:{}, Offset:{}, Value:{}, exceptionMessage:{}, exceptionStackTrace:{}, groupId:{}",
+                  topic,
+                  key,
+                  partition,
+                  offset,
                   value,
-                  originalExceptionStackTrace);
+                  exceptionMessage,
+                  exceptionStacktrace,
+                  groupId);
 
         // ...
 

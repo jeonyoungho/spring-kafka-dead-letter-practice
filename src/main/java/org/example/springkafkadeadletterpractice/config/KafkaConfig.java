@@ -1,15 +1,17 @@
 package org.example.springkafkadeadletterpractice.config;
 
 import com.google.common.collect.Maps;
+import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
-import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.example.springkafkadeadletterpractice.kafka.consumer.DeadLetterConsumer;
+import org.example.springkafkadeadletterpractice.kafka.exception.RetryableException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -21,13 +23,11 @@ import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaAdmin;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.listener.ContainerProperties.AckMode;
-import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
-import org.springframework.kafka.listener.DefaultErrorHandler;
-import org.springframework.kafka.listener.KafkaListenerErrorHandler;
-import org.springframework.kafka.support.serializer.JsonDeserializer;
-import org.springframework.kafka.support.serializer.JsonSerializer;
-import org.springframework.util.backoff.ExponentialBackOff;
-import org.springframework.util.backoff.FixedBackOff;
+import org.springframework.kafka.retrytopic.DltStrategy;
+import org.springframework.kafka.retrytopic.RetryTopicConfiguration;
+import org.springframework.kafka.retrytopic.RetryTopicConfigurationBuilder;
+import org.springframework.kafka.retrytopic.TopicSuffixingStrategy;
+import org.springframework.kafka.support.EndpointHandlerMethod;
 
 @Slf4j
 @EnableKafka
@@ -49,71 +49,51 @@ public class KafkaConfig {
     @Value("${spring.kafka.topic.order-event}")
     private String orderEventTopic;
 
-    @Value("${spring.kafka.topic.dead-letter}")
-    private String deadLetterTopic;
-
     @Bean
-    public KafkaTemplate<String, Object> kafkaTemplate() {
+    public KafkaTemplate<String, String> kafkaTemplate() {
         Map<String, Object> properties = Maps.newHashMap();
 
         properties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaBootstrapServers);
         properties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
-        properties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
-        properties.put(ProducerConfig.CLIENT_ID_CONFIG, producerClientId);
-        properties.put(ProducerConfig.ACKS_CONFIG, "1");
+        properties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
 
         return new KafkaTemplate<>(new DefaultKafkaProducerFactory<>(properties));
     }
 
     @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, Object> kafkaListenerContainerFactory() {
-        ConcurrentKafkaListenerContainerFactory<String, Object>
+    public ConcurrentKafkaListenerContainerFactory<String, String> kafkaListenerContainerFactory() {
+        ConcurrentKafkaListenerContainerFactory<String, String>
                 kafkaListenerContainerFactory = new ConcurrentKafkaListenerContainerFactory<>();
 
         Map<String, Object> properties = Maps.newHashMap();
 
         properties.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaBootstrapServers);
         properties.put(ConsumerConfig.GROUP_ID_CONFIG, consumerGroupId);
-        properties.put(ConsumerConfig.CLIENT_ID_CONFIG, consumerClientId);
         properties.put(ConsumerConfig.REQUEST_TIMEOUT_MS_CONFIG, 30000);
         properties.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, 30000);
         properties.put(ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG, 10000);
         properties.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
-        properties.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class);
-        properties.put(JsonDeserializer.TRUSTED_PACKAGES, "org.example.springkafkadeadletterpractice.kafka.dto");
+        properties.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         properties.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
 
         kafkaListenerContainerFactory.getContainerProperties().setAckMode(AckMode.MANUAL);
         kafkaListenerContainerFactory.setConsumerFactory(new DefaultKafkaConsumerFactory<>(properties));
-        kafkaListenerContainerFactory.setCommonErrorHandler(defaultErrorHandler());
+
         return kafkaListenerContainerFactory;
     }
 
     @Bean
-    public DeadLetterPublishingRecoverer deadLetterPublishingRecoverer() {
-        return new DeadLetterPublishingRecoverer(kafkaTemplate(), (r, e) -> new TopicPartition(deadLetterTopic, 0));
-    }
-
-    @Bean
-    public DefaultErrorHandler defaultErrorHandler() {
-//        ExponentialBackOff backOff = new ExponentialBackOff();
-//        backOff.setMaxAttempts(3);
-//        backOff.setInitialInterval(1000L);
-//        backOff.setMultiplier(2.0);
-//        backOff.setMaxInterval(10000L);
-//
-//        return new DefaultErrorHandler(deadLetterPublishingRecoverer(), backOff);
-
-        return new DefaultErrorHandler(deadLetterPublishingRecoverer(), new FixedBackOff(0L, 0L));
-    }
-
-    @Bean
-    public KafkaListenerErrorHandler deadLetterErrorHandler() {
-        return (message, exception) -> {
-            // dlt 메시지 처리 실패시 처리 로직
-            log.error("Error Occurred during DLT Processing. Skipping message: {}, Error: {}", message.getPayload(), exception.getMessage());
-            return null;
-        };
+    public RetryTopicConfiguration retryableTopic(KafkaTemplate<String, String> kafkaTemplate) {
+        return RetryTopicConfigurationBuilder.newInstance()
+                                             .maxAttempts(3)
+                                             .exponentialBackoff(1000L, 2, 10 * 1000L)
+                                             .autoCreateTopics(true, 1, (short) 1)
+//                                           .excludeTopics(List.of(orderEventTopic))
+                                             .retryOn(List.of(RetryableException.class))
+                                             .setTopicSuffixingStrategy(TopicSuffixingStrategy.SUFFIX_WITH_INDEX_VALUE)
+                                             .dltProcessingFailureStrategy(DltStrategy.ALWAYS_RETRY_ON_ERROR)
+                                             .dltHandlerMethod(new EndpointHandlerMethod(DeadLetterConsumer.class, "consume"))
+                                             .create(kafkaTemplate);
     }
 
     @Bean
@@ -130,10 +110,4 @@ public class KafkaConfig {
                            .build();
     }
 
-    @Bean
-    public NewTopic deadLetterTopic() {
-        return TopicBuilder.name(deadLetterTopic)
-                           .partitions(1)
-                           .build();
-    }
 }
