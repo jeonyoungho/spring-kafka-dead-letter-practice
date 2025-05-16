@@ -82,7 +82,7 @@ public class KafkaConfig {
                                              .maxAttempts(3)
                                              .exponentialBackoff(1000L, 2, 10 * 1000L)
                                              .autoCreateTopics(true, 1, (short) 1)
-//                                           .excludeTopics(List.of(orderEventTopic))
+                                             .excludeTopics(List.of(orderEventTopic))
                                              .retryOn(List.of(RetryableException.class))
                                              .setTopicSuffixingStrategy(TopicSuffixingStrategy.SUFFIX_WITH_INDEX_VALUE)
                                              .dltProcessingFailureStrategy(DltStrategy.ALWAYS_RETRY_ON_ERROR)

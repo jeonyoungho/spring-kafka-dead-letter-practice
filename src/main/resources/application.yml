@@ -24,3 +24,7 @@ spring:
       group-id: kafka-test-group
     topic:
       order-event: order-event
+
+logging:
+  level:
+    org.springframework.kafka.retrytopic.DeadLetterPublishingRecovererFactory: off
