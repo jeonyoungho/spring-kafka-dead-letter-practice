@@ -45,6 +45,12 @@ public class KafkaConfig {
     @Value("${spring.kafka.topic.order-event}")
     private String orderEventTopic;
 
+    @Value("${spring.kafka.topic.stock-event}")
+    private String stockEventTopic;
+
+    @Value("${spring.kafka.topic.delivery-event}")
+    private String deliveryEventTopic;
+
     @Bean
     public KafkaTemplate<String, String> kafkaTemplate() {
         Map<String, Object> properties = Maps.newHashMap();
@@ -74,12 +80,13 @@ public class KafkaConfig {
 
         kafkaListenerContainerFactory.getContainerProperties().setAckMode(AckMode.MANUAL);
         kafkaListenerContainerFactory.setConsumerFactory(new DefaultKafkaConsumerFactory<>(properties));
-        kafkaListenerContainerFactory.setCommonErrorHandler(errorHandler());
+        kafkaListenerContainerFactory.setCommonErrorHandler(defaultErrorHandler());
 
         return kafkaListenerContainerFactory;
     }
 
-    public DefaultErrorHandler errorHandler() {
+    @Bean
+    public DefaultErrorHandler defaultErrorHandler() {
         return new DefaultErrorHandler(new FixedBackOff(0, 0));
     }
 
@@ -107,6 +114,20 @@ public class KafkaConfig {
     @Bean
     public NewTopic orderEventTopic() {
         return TopicBuilder.name(orderEventTopic)
+                           .partitions(1)
+                           .build();
+    }
+
+    @Bean
+    public NewTopic stockEventTopic() {
+        return TopicBuilder.name(stockEventTopic)
+                           .partitions(1)
+                           .build();
+    }
+
+    @Bean
+    public NewTopic deliveryEventTopic() {
+        return TopicBuilder.name(deliveryEventTopic)
                            .partitions(1)
                            .build();
     }

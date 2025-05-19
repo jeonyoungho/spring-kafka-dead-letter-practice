@@ -24,6 +24,8 @@ spring:
       group-id: kafka-test-group
     topic:
       order-event: order-event
+      stock-event: stock-event
+      delivery-event: delivery-event
 
 logging:
   level:
