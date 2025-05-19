@@ -24,15 +24,14 @@ public class DeadLetterConsumer {
         String key = consumerRecord.key();
         String value = consumerRecord.value();
 
-        log.error("[Kafka][Consumer] Consumed Dead Letter Message ==> Topic:{}, Key: {}, Partition:{}, Offset:{}, Value:{}, groupId:{}, exceptionMessage:{}, exceptionStackTrace:{}",
+        log.error("[Kafka][Consumer] Consumed Dead Letter Message ==> Topic:{}, Key: {}, Partition:{}, Offset:{}, Value:{}, groupId:{}, exceptionMessage:{}",
                   topic,
                   key,
                   partition,
                   offset,
                   value,
                   groupId,
-                  exceptionMessage,
-                  exceptionStacktrace);
+                  exceptionMessage);
 
         // ...
 
