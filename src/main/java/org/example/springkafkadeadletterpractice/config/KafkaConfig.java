@@ -23,11 +23,13 @@ import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaAdmin;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.listener.ContainerProperties.AckMode;
+import org.springframework.kafka.listener.DefaultErrorHandler;
 import org.springframework.kafka.retrytopic.DltStrategy;
 import org.springframework.kafka.retrytopic.RetryTopicConfiguration;
 import org.springframework.kafka.retrytopic.RetryTopicConfigurationBuilder;
 import org.springframework.kafka.retrytopic.TopicSuffixingStrategy;
 import org.springframework.kafka.support.EndpointHandlerMethod;
+import org.springframework.util.backoff.FixedBackOff;
 
 @Slf4j
 @EnableKafka
@@ -72,8 +74,13 @@ public class KafkaConfig {
 
         kafkaListenerContainerFactory.getContainerProperties().setAckMode(AckMode.MANUAL);
         kafkaListenerContainerFactory.setConsumerFactory(new DefaultKafkaConsumerFactory<>(properties));
+        kafkaListenerContainerFactory.setCommonErrorHandler(errorHandler());
 
         return kafkaListenerContainerFactory;
+    }
+
+    public DefaultErrorHandler errorHandler() {
+        return new DefaultErrorHandler(new FixedBackOff(0, 0));
     }
 
     @Bean
@@ -82,7 +89,7 @@ public class KafkaConfig {
                                              .maxAttempts(3)
                                              .exponentialBackoff(1000L, 2, 10 * 1000L)
                                              .autoCreateTopics(true, 1, (short) 1)
-                                             .excludeTopics(List.of(orderEventTopic))
+                                             .includeTopics(List.of(orderEventTopic))
                                              .retryOn(List.of(RetryableException.class))
                                              .setTopicSuffixingStrategy(TopicSuffixingStrategy.SUFFIX_WITH_INDEX_VALUE)
                                              .dltProcessingFailureStrategy(DltStrategy.ALWAYS_RETRY_ON_ERROR)
